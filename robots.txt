@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fkkkyttb.github.io/math-games/sitemap.xml
