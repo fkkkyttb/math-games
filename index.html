@@ -190,7 +190,7 @@
 
     .actions {
       display: grid;
-      grid-template-columns: 1.3fr 1fr;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr;
       gap: 10px;
       margin-bottom: 14px;
     }
@@ -214,6 +214,14 @@
     button.observe span {
       position: relative;
       z-index: 1;
+    }
+
+    .secondary-action {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .secondary-action:hover {
+      background: rgba(255, 255, 255, 0.14);
     }
 
     .board {
@@ -460,6 +468,79 @@
       line-height: 1.5;
     }
 
+    .app-modal {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(3, 7, 18, 0.78);
+      backdrop-filter: blur(9px);
+    }
+
+    .app-modal[hidden] {
+      display: none;
+    }
+
+    .app-modal-card {
+      width: min(760px, 100%);
+      max-height: min(84vh, 760px);
+      overflow: auto;
+      border-radius: 8px;
+      padding: clamp(18px, 3vw, 26px);
+      background: rgba(12, 18, 41, 0.96);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 24px 70px rgba(0, 0, 0, 0.5);
+    }
+
+    .app-modal-header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .app-modal h2 {
+      margin: 0;
+      color: #eef5ff;
+      font-size: clamp(24px, 5vw, 36px);
+      line-height: 1.12;
+    }
+
+    .app-modal-close {
+      min-width: 44px;
+      padding: 0;
+      font-size: 22px;
+    }
+
+    .rule-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .rule-card {
+      border-radius: 8px;
+      padding: 13px;
+      background: rgba(255, 255, 255, 0.055);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+    }
+
+    .rule-card h3 {
+      margin: 0 0 7px;
+      color: #dfe9ff;
+      font-size: 15px;
+      line-height: 1.3;
+    }
+
+    .rule-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
     .side-panel {
       display: grid;
       gap: 14px;
@@ -636,6 +717,10 @@
         grid-template-columns: 1fr;
       }
 
+      .rule-grid {
+        grid-template-columns: 1fr;
+      }
+
       .tile {
         padding: 5px;
       }
@@ -660,6 +745,8 @@
       <section class="board-panel">
         <div class="actions">
           <button class="observe" id="observeButton" type="button"><span>観測する</span></button>
+          <button class="secondary-action" id="rulesButton" type="button">詳しいルール</button>
+          <button class="secondary-action" id="shareButton" type="button">共有</button>
           <button id="restartButton" type="button">リスタート</button>
         </div>
         <div class="board" id="board" aria-label="Quantum 2048 board">
@@ -707,6 +794,41 @@
     </div>
   </main>
 
+  <div class="app-modal" id="rulesModal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle" hidden>
+    <div class="app-modal-card">
+      <div class="app-modal-header">
+        <h2 id="rulesTitle">詳しいルール</h2>
+        <button class="app-modal-close" id="closeRulesButton" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div class="rule-grid">
+        <section class="rule-card">
+          <h3>基本</h3>
+          <p>通常の2048と同じように、上下左右へタイルを動かします。同じ数字がぶつかると、位相や状態に応じて合体判定が起きます。</p>
+        </section>
+        <section class="rule-card">
+          <h3>位相</h3>
+          <p>+ と - は波の向きのようなものです。同じ位相なら安定して合体しやすく、逆位相なら消滅や不安定な結果が起きやすくなります。</p>
+        </section>
+        <section class="rule-card">
+          <h3>重ね合わせ</h3>
+          <p>4/8 のようなタイルは、まだ値が確定していません。観測するとどちらかの値に収縮します。確定前の2048候補だけではクリアになりません。</p>
+        </section>
+        <section class="rule-card">
+          <h3>量子もつれ</h3>
+          <p>同じ記号を持つ2枚はペアです。片方を観測すると、もう片方も同時に確定します。ペアは線でつながって表示されます。</p>
+        </section>
+        <section class="rule-card">
+          <h3>観測</h3>
+          <p>観測ボタンは1ゲームにつき3回までです。盤面の未確定タイルをまとめて確定できます。使いどころがスコアとクリアの鍵になります。</p>
+        </section>
+        <section class="rule-card">
+          <h3>勝利条件</h3>
+          <p>2048を含む重ね合わせではなく、観測済みの通常タイルとして2048を作るとクリアです。クリア後も続けて遊べます。</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SIZE = 4;
     const BEST_KEY = "quantum-2048-beta-best";
@@ -727,6 +849,11 @@
     const overlayTitle = document.getElementById("overlayTitle");
     const overlayText = document.getElementById("overlayText");
     const overlayAction = document.getElementById("overlayAction");
+    const rulesButton = document.getElementById("rulesButton");
+    const shareButton = document.getElementById("shareButton");
+    const rulesModal = document.getElementById("rulesModal");
+    const closeRulesButton = document.getElementById("closeRulesButton");
+    const PUBLIC_URL = "https://fkkkyttb.github.io/math-games/";
 
     let board = [];
     let score = 0;
@@ -1343,6 +1470,10 @@
     }
 
     document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !rulesModal.hidden) {
+        rulesModal.hidden = true;
+        return;
+      }
       const direction = keyToDirection(event.key);
       if (!direction) return;
       event.preventDefault();
@@ -1369,6 +1500,39 @@
 
     observeButton.addEventListener("click", observeAll);
     restartButton.addEventListener("click", startGame);
+    rulesButton.addEventListener("click", () => {
+      rulesModal.hidden = false;
+      closeRulesButton.focus();
+    });
+    closeRulesButton.addEventListener("click", () => {
+      rulesModal.hidden = true;
+      rulesButton.focus();
+    });
+    rulesModal.addEventListener("click", (event) => {
+      if (event.target === rulesModal) rulesModal.hidden = true;
+    });
+    shareButton.addEventListener("click", async () => {
+      const shareData = {
+        title: "量子2048",
+        text: "重ね合わせ・観測・位相・量子もつれで遊ぶ2048風パズルゲーム",
+        url: PUBLIC_URL
+      };
+      try {
+        if (navigator.share) {
+          await navigator.share(shareData);
+          addLog("共有メニューを開きました。");
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(PUBLIC_URL);
+          addLog("公開URLをクリップボードにコピーしました。");
+        } else {
+          addLog(`公開URL: ${PUBLIC_URL}`);
+        }
+        renderLog();
+      } catch (error) {
+        addLog("共有をキャンセルしました。");
+        renderLog();
+      }
+    });
     overlayAction.addEventListener("click", () => {
       if (overlayMode === "gameover") {
         startGame();
