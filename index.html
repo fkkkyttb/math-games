@@ -641,6 +641,39 @@
       line-height: 1.5;
     }
 
+    .site-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 22px;
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.045);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      justify-content: flex-end;
+    }
+
+    .footer-links a {
+      color: #dfe9ff;
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .footer-links a:hover {
+      color: var(--cyan);
+      text-decoration: underline;
+    }
+
     @keyframes shimmer {
       to { transform: translateX(120%) rotate(14deg); }
     }
@@ -721,6 +754,15 @@
         grid-template-columns: 1fr;
       }
 
+      .site-footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .footer-links {
+        justify-content: flex-start;
+      }
+
       .tile {
         padding: 5px;
       }
@@ -792,6 +834,14 @@
         </section>
       </aside>
     </div>
+    <footer class="site-footer">
+      <div>© 2026 Quantum 2048 β / Math Games</div>
+      <nav class="footer-links" aria-label="footer links">
+        <a href="privacy.html">プライバシーポリシー</a>
+        <a href="sitemap.xml">サイトマップ</a>
+        <a href="https://github.com/fkkkyttb/math-games" rel="noopener">GitHub</a>
+      </nav>
+    </footer>
   </main>
 
   <div class="app-modal" id="rulesModal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle" hidden>
