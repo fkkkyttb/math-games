@@ -1,0 +1,1355 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quantum 2048 β</title>
+  <style>
+    :root {
+      --bg: #080916;
+      --panel: rgba(13, 18, 39, 0.84);
+      --panel-strong: rgba(22, 30, 62, 0.92);
+      --grid: rgba(91, 108, 155, 0.24);
+      --cell: rgba(255, 255, 255, 0.055);
+      --text: #eef5ff;
+      --muted: #9faccc;
+      --plus: #52c8ff;
+      --minus: #ff5abf;
+      --gold: #ffd978;
+      --cyan: #72f7ff;
+      --danger: #ff6f91;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+      --gap: clamp(8px, 1.9vw, 14px);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 18% 12%, rgba(82, 200, 255, 0.22), transparent 28rem),
+        radial-gradient(circle at 88% 18%, rgba(255, 90, 191, 0.18), transparent 26rem),
+        radial-gradient(circle at 50% 100%, rgba(255, 217, 120, 0.12), transparent 30rem),
+        linear-gradient(145deg, #060712 0%, #0b1025 54%, #16071f 100%);
+      font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Sans", Meiryo, sans-serif;
+      letter-spacing: 0;
+      user-select: none;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 8px;
+      min-height: 44px;
+      padding: 0 16px;
+      color: var(--text);
+      background: rgba(105, 126, 190, 0.35);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 10px 24px rgba(0, 0, 0, 0.18);
+    }
+
+    button:hover {
+      background: rgba(124, 149, 220, 0.46);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .shell {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: clamp(16px, 3vw, 32px);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .title-block {
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(40px, 6vw, 76px);
+      line-height: 0.95;
+      letter-spacing: 0;
+      text-shadow: 0 0 28px rgba(82, 200, 255, 0.2);
+    }
+
+    .beta {
+      color: var(--cyan);
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .meters {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(88px, 1fr));
+      gap: 10px;
+      min-width: min(410px, 100%);
+    }
+
+    .meter {
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: var(--panel-strong);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 30px rgba(0, 0, 0, 0.18);
+      text-align: center;
+    }
+
+    .meter span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .meter strong {
+      display: block;
+      margin-top: 2px;
+      min-height: 29px;
+      font-size: 25px;
+      line-height: 1.15;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 560px) minmax(290px, 1fr);
+      gap: clamp(16px, 3vw, 28px);
+      align-items: start;
+    }
+
+    .board-panel,
+    .side-panel {
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(18px);
+    }
+
+    .board-panel {
+      padding: clamp(12px, 2.2vw, 18px);
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    button.observe {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #3a8dff 0%, #7c55ff 45%, #ff4fbd 100%);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+    }
+
+    button.observe::after {
+      content: "";
+      position: absolute;
+      inset: -80% -20%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+      transform: translateX(-80%) rotate(14deg);
+      animation: shimmer 2.6s linear infinite;
+    }
+
+    button.observe span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .board {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      padding: var(--gap);
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(82, 200, 255, 0.13), rgba(255, 90, 191, 0.1)),
+        rgba(7, 11, 27, 0.88);
+      box-shadow: inset 0 0 0 1px rgba(139, 175, 255, 0.22), inset 0 0 36px rgba(82, 200, 255, 0.1);
+      touch-action: none;
+    }
+
+    .cell-layer,
+    .tile-layer,
+    .line-layer,
+    .effect-layer {
+      position: absolute;
+      inset: var(--gap);
+    }
+
+    .cell-layer,
+    .tile-layer {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: var(--gap);
+    }
+
+    .cell {
+      border-radius: 8px;
+      background: var(--cell);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .line-layer {
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .link-line {
+      stroke: var(--cyan);
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-dasharray: 6 5;
+      filter: drop-shadow(0 0 7px rgba(114, 247, 255, 0.86));
+      animation: dash 1.2s linear infinite;
+    }
+
+    .tile {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+      border-radius: 8px;
+      padding: 7px;
+      color: #fafdff;
+      overflow: hidden;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+        inset 0 -16px 26px rgba(0, 0, 0, 0.14),
+        0 0 22px rgba(82, 200, 255, 0.18);
+    }
+
+    .tile::before {
+      content: "";
+      position: absolute;
+      inset: -45%;
+      opacity: 0.44;
+      background: conic-gradient(from 90deg, transparent, rgba(255, 255, 255, 0.2), transparent 38%);
+      animation: rotate 7s linear infinite;
+    }
+
+    .tile-inner {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 3px;
+      justify-items: center;
+      max-width: 100%;
+    }
+
+    .tile-value {
+      max-width: 100%;
+      font-size: clamp(24px, 8.2vw, 48px);
+      font-weight: 900;
+      line-height: 0.94;
+      white-space: nowrap;
+    }
+
+    .tile-value.compact {
+      font-size: clamp(18px, 5.6vw, 34px);
+    }
+
+    .tile-meta {
+      min-width: 28px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: clamp(12px, 3.2vw, 17px);
+      font-weight: 900;
+      line-height: 1.1;
+      background: rgba(0, 0, 0, 0.22);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+
+    .normal.phase-plus {
+      background: linear-gradient(145deg, #146bff 0%, #16c9ff 100%);
+    }
+
+    .normal.phase-minus {
+      background: linear-gradient(145deg, #9b2dff 0%, #ff4aa8 100%);
+    }
+
+    .phase-plus .tile-meta {
+      color: #dff8ff;
+      text-shadow: 0 0 10px rgba(82, 200, 255, 0.8);
+    }
+
+    .phase-minus .tile-meta {
+      color: #ffe3f5;
+      text-shadow: 0 0 10px rgba(255, 90, 191, 0.82);
+    }
+
+    .superposition {
+      background: linear-gradient(135deg, #2437ff 0%, #7d4cff 38%, #fb4fc4 100%);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 0 24px rgba(126, 92, 255, 0.42),
+        0 0 48px rgba(82, 200, 255, 0.16);
+      animation: superFloat 2.7s ease-in-out infinite;
+    }
+
+    .superposition::after {
+      content: "";
+      position: absolute;
+      inset: -10%;
+      background:
+        repeating-linear-gradient(120deg, transparent 0 12px, rgba(255, 255, 255, 0.16) 13px 15px),
+        radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 58%);
+      mix-blend-mode: screen;
+      animation: wave 2.4s ease-in-out infinite;
+    }
+
+    .entangled {
+      background: radial-gradient(circle at 50% 38%, rgba(114, 247, 255, 0.72), rgba(20, 35, 65, 0.92) 58%, rgba(7, 11, 27, 0.94) 100%);
+      box-shadow:
+        inset 0 0 0 2px var(--entangle-color, var(--gold)),
+        0 0 20px rgba(114, 247, 255, 0.45),
+        0 0 34px rgba(255, 217, 120, 0.2);
+    }
+
+    .entangled::after {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border-radius: 50%;
+      border: 2px solid var(--entangle-color, var(--gold));
+      opacity: 0.82;
+      animation: orbit 1.9s ease-in-out infinite;
+    }
+
+    .new {
+      animation: appear 150ms ease-out;
+    }
+
+    .merged {
+      animation: mergePulse 190ms ease-out;
+    }
+
+    .superposition.new {
+      animation: appear 150ms ease-out, superFloat 2.7s ease-in-out infinite;
+    }
+
+    .superposition.merged {
+      animation: mergePulse 190ms ease-out, superFloat 2.7s ease-in-out infinite;
+    }
+
+    .effect-layer {
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .effect {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      padding: 5px 10px;
+      border-radius: 999px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.42);
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+      animation: floatUp 760ms ease-out forwards;
+      filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.28));
+    }
+
+    .effect.annihilate {
+      color: #ffe6ee;
+      background: rgba(255, 79, 150, 0.28);
+      box-shadow: 0 0 30px rgba(255, 79, 150, 0.34);
+    }
+
+    .effect.observe {
+      color: #e8fcff;
+      background: rgba(82, 200, 255, 0.24);
+      box-shadow: 0 0 30px rgba(82, 200, 255, 0.34);
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 22px;
+      background: rgba(4, 8, 22, 0.74);
+      backdrop-filter: blur(5px);
+      text-align: center;
+    }
+
+    .overlay.show {
+      display: grid;
+    }
+
+    .overlay-card {
+      width: min(390px, 92%);
+      border-radius: 8px;
+      padding: 22px;
+      background: rgba(12, 18, 41, 0.94);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.11), 0 20px 54px rgba(0, 0, 0, 0.45);
+    }
+
+    .overlay h2 {
+      margin: 0;
+      font-size: clamp(30px, 8vw, 52px);
+      line-height: 1;
+    }
+
+    .overlay p {
+      margin: 12px 0 18px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .side-panel {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .section {
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.045);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+      padding: 14px;
+    }
+
+    .section h2 {
+      margin: 0 0 9px;
+      color: #dfe9ff;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .rules {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      border-radius: 8px;
+      padding: 7px 9px;
+      background: rgba(255, 255, 255, 0.055);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    .dot.plus {
+      background: var(--plus);
+      box-shadow: 0 0 14px var(--plus);
+    }
+
+    .dot.minus {
+      background: var(--minus);
+      box-shadow: 0 0 14px var(--minus);
+    }
+
+    .dot.super {
+      background: linear-gradient(135deg, #3b61ff, #ff5abf);
+      box-shadow: 0 0 14px #7c55ff;
+    }
+
+    .dot.entangle {
+      background: var(--gold);
+      box-shadow: 0 0 14px var(--gold);
+    }
+
+    .log {
+      display: grid;
+      gap: 8px;
+      min-height: 202px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .log li {
+      border-left: 3px solid rgba(114, 247, 255, 0.55);
+      padding: 8px 10px;
+      border-radius: 0 8px 8px 0;
+      background: rgba(255, 255, 255, 0.052);
+      color: #d8e4ff;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .status-line {
+      margin-top: 11px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    @keyframes shimmer {
+      to { transform: translateX(120%) rotate(14deg); }
+    }
+
+    @keyframes dash {
+      to { stroke-dashoffset: -22; }
+    }
+
+    @keyframes rotate {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes appear {
+      from { transform: scale(0.35); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes mergePulse {
+      0% { transform: scale(0.88); filter: brightness(1); }
+      55% { transform: scale(1.12); filter: brightness(1.35); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+
+    @keyframes superFloat {
+      0%, 100% { translate: 0 0; filter: hue-rotate(0deg); }
+      50% { translate: 0 -3px; filter: hue-rotate(18deg); }
+    }
+
+    @keyframes wave {
+      0%, 100% { transform: translateX(-8%) skewX(-5deg); opacity: 0.46; }
+      50% { transform: translateX(8%) skewX(5deg); opacity: 0.72; }
+    }
+
+    @keyframes orbit {
+      0%, 100% { transform: scale(0.86) rotate(0deg); opacity: 0.72; }
+      50% { transform: scale(1.03) rotate(8deg); opacity: 1; }
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 0; translate: 0 12px; scale: 0.9; }
+      18% { opacity: 1; }
+      100% { opacity: 0; translate: 0 -35px; scale: 1.08; }
+    }
+
+    @media (max-width: 940px) {
+      .topbar,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .meters {
+        min-width: 0;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .shell {
+        padding: 12px;
+      }
+
+      .meters {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .meter:last-child {
+        grid-column: 1 / -1;
+      }
+
+      .actions {
+        grid-template-columns: 1fr;
+      }
+
+      .legend {
+        grid-template-columns: 1fr;
+      }
+
+      .tile {
+        padding: 5px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="title-block">
+        <h1>Quantum 2048 <span class="beta">β</span></h1>
+        <div class="subtitle">位相をそろえ、重ね合わせを観測し、2048を確定させるパズル。</div>
+      </div>
+      <div class="meters" aria-live="polite">
+        <div class="meter"><span>Score</span><strong id="score">0</strong></div>
+        <div class="meter"><span>Best</span><strong id="best">0</strong></div>
+        <div class="meter"><span>Observe</span><strong id="observes">3</strong></div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <section class="board-panel">
+        <div class="actions">
+          <button class="observe" id="observeButton" type="button"><span>観測する</span></button>
+          <button id="restartButton" type="button">リスタート</button>
+        </div>
+        <div class="board" id="board" aria-label="Quantum 2048 board">
+          <div class="cell-layer" id="cellLayer" aria-hidden="true"></div>
+          <svg class="line-layer" id="lineLayer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="tile-layer" id="tileLayer"></div>
+          <div class="effect-layer" id="effectLayer" aria-hidden="true"></div>
+          <div class="overlay" id="overlay" role="status" aria-live="assertive">
+            <div class="overlay-card">
+              <h2 id="overlayTitle">Quantum Clear!</h2>
+              <p id="overlayText">2048を観測しました。</p>
+              <button id="overlayAction" type="button">続ける</button>
+            </div>
+          </div>
+        </div>
+        <div class="status-line">矢印キー / W A S D / スワイプで操作できます。</div>
+      </section>
+
+      <aside class="side-panel">
+        <section class="section">
+          <h2>簡単なルール</h2>
+          <p class="rules">
+            同じ数字がぶつかると合体判定が起きます。同じ位相なら高確率で合体、逆位相なら不安定な干渉が起きます。
+            合体結果が重ね合わせになることがあり、観測するまで値は確定しません。
+            もつれタイルはペアでつながっており、片方を観測するともう片方も同時に確定します。
+            観測ボタンは3回まで使えます。2048を“観測済みの通常タイル”として作れば勝利です。
+          </p>
+        </section>
+
+        <section class="section">
+          <h2>状態</h2>
+          <div class="legend">
+            <div class="chip"><span class="dot plus"></span>+ 位相</div>
+            <div class="chip"><span class="dot minus"></span>- 位相</div>
+            <div class="chip"><span class="dot super"></span>重ね合わせ</div>
+            <div class="chip"><span class="dot entangle"></span>量子もつれ</div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>量子イベントログ</h2>
+          <ul class="log" id="eventLog"></ul>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const SIZE = 4;
+    const BEST_KEY = "quantum-2048-beta-best";
+    const MAX_OBSERVES = 3;
+
+    const scoreEl = document.getElementById("score");
+    const bestEl = document.getElementById("best");
+    const observesEl = document.getElementById("observes");
+    const observeButton = document.getElementById("observeButton");
+    const restartButton = document.getElementById("restartButton");
+    const boardEl = document.getElementById("board");
+    const cellLayer = document.getElementById("cellLayer");
+    const tileLayer = document.getElementById("tileLayer");
+    const lineLayer = document.getElementById("lineLayer");
+    const effectLayer = document.getElementById("effectLayer");
+    const eventLogEl = document.getElementById("eventLog");
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlayText = document.getElementById("overlayText");
+    const overlayAction = document.getElementById("overlayAction");
+
+    let board = [];
+    let score = 0;
+    let best = Number(localStorage.getItem(BEST_KEY) || 0);
+    let observesLeft = MAX_OBSERVES;
+    let nextTileId = 1;
+    let entangleCounter = 0;
+    let victoryAnnounced = false;
+    let gameOver = false;
+    let overlayMode = "continue";
+    let logs = [];
+    let effects = [];
+    let newTileIds = new Set();
+    let mergedTileIds = new Set();
+    let pendingPartners = [];
+
+    function emptyBoard() {
+      return Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+    }
+
+    function createNormal(value, phase) {
+      return { id: nextTileId++, type: "normal", value, phase };
+    }
+
+    function createSuperposition(low, high, phase) {
+      return { id: nextTileId++, type: "superposition", low, high, phase, lowProb: 0.7, highProb: 0.3 };
+    }
+
+    function createEntangled(value, entangleId, phase) {
+      return { id: nextTileId++, type: "entangled", value, phase, entangleId };
+    }
+
+    function setNormal(tile, value, phase) {
+      tile.type = "normal";
+      tile.value = value;
+      tile.phase = phase;
+      delete tile.low;
+      delete tile.high;
+      delete tile.lowProb;
+      delete tile.highProb;
+      delete tile.entangleId;
+    }
+
+    function randomPhase() {
+      return Math.random() < 0.5 ? "+" : "-";
+    }
+
+    function inversePhase(phase) {
+      return phase === "+" ? "-" : "+";
+    }
+
+    function nextEntangleId() {
+      let n = entangleCounter++;
+      let label = "";
+      do {
+        label = String.fromCharCode(65 + (n % 26)) + label;
+        n = Math.floor(n / 26) - 1;
+      } while (n >= 0);
+      return label;
+    }
+
+    function weightedNewTile() {
+      const r = Math.random();
+      if (r < 0.75) return createNormal(2, "+");
+      if (r < 0.9) return createNormal(2, "-");
+      return createNormal(4, "+");
+    }
+
+    function availableCells(targetBoard = board) {
+      const cells = [];
+      for (let y = 0; y < SIZE; y += 1) {
+        for (let x = 0; x < SIZE; x += 1) {
+          if (!targetBoard[y][x]) cells.push({ x, y });
+        }
+      }
+      return cells;
+    }
+
+    function addRandomTile(targetBoard = board) {
+      const cells = availableCells(targetBoard);
+      if (!cells.length) return false;
+      const cell = cells[Math.floor(Math.random() * cells.length)];
+      const tile = weightedNewTile();
+      targetBoard[cell.y][cell.x] = tile;
+      newTileIds.add(tile.id);
+      return true;
+    }
+
+    function addLog(message) {
+      logs.unshift(message);
+      logs = logs.slice(0, 7);
+    }
+
+    function addEffect(x, y, text, kind = "observe") {
+      effects.push({ x, y, text, kind });
+    }
+
+    function tileName(tile) {
+      if (!tile) return "空白";
+      if (tile.type === "normal") return `${tile.value}${tile.phase}`;
+      if (tile.type === "superposition") return `${tile.low}/${tile.high}${tile.phase}`;
+      return `${tile.value}${tile.entangleId}${tile.phase || ""}`;
+    }
+
+    function tileSignature(tile) {
+      if (!tile) return ".";
+      if (tile.type === "normal") return `N${tile.value}${tile.phase}`;
+      if (tile.type === "superposition") return `S${tile.low}/${tile.high}${tile.phase}`;
+      return `E${tile.value}${tile.entangleId}${tile.phase || ""}`;
+    }
+
+    function boardSignature(targetBoard = board) {
+      return targetBoard.map((row) => row.map(tileSignature).join(",")).join("|");
+    }
+
+    function setupCells() {
+      cellLayer.innerHTML = "";
+      for (let i = 0; i < SIZE * SIZE; i += 1) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cellLayer.appendChild(cell);
+      }
+    }
+
+    function startGame() {
+      board = emptyBoard();
+      score = 0;
+      observesLeft = MAX_OBSERVES;
+      victoryAnnounced = false;
+      gameOver = false;
+      overlay.classList.remove("show");
+      overlayMode = "continue";
+      effects = [];
+      newTileIds = new Set();
+      mergedTileIds = new Set();
+      pendingPartners = [];
+      logs = [];
+      addLog("新しい量子盤面を初期化しました。");
+      addRandomTile();
+      addRandomTile();
+      render();
+    }
+
+    function getLines(direction) {
+      const lines = [];
+      for (let i = 0; i < SIZE; i += 1) {
+        const line = [];
+        for (let j = 0; j < SIZE; j += 1) {
+          if (direction === "left") line.push({ x: j, y: i });
+          if (direction === "right") line.push({ x: SIZE - 1 - j, y: i });
+          if (direction === "up") line.push({ x: i, y: j });
+          if (direction === "down") line.push({ x: i, y: SIZE - 1 - j });
+        }
+        lines.push(line);
+      }
+      return lines;
+    }
+
+    function valueOf(tile) {
+      return tile.type === "superposition" ? null : tile.value;
+    }
+
+    function observeSuperposition(tile, pos, reason = "観測") {
+      const before = tileName(tile);
+      const high = Math.random() >= tile.lowProb;
+      const value = high ? tile.high : tile.low;
+      const phase = tile.phase;
+      setNormal(tile, value, phase);
+      const after = tileName(tile);
+      addLog(`${before} を${reason} → ${after} に収縮${high ? "（Lucky Collapse!）" : ""}`);
+      if (pos) addEffect(pos.x, pos.y, high ? "Lucky Collapse!" : "観測", "observe");
+      return true;
+    }
+
+    function findTilePosition(tile) {
+      for (let y = 0; y < SIZE; y += 1) {
+        for (let x = 0; x < SIZE; x += 1) {
+          if (board[y][x] === tile) return { x, y };
+        }
+      }
+      return null;
+    }
+
+    function findEntangled(entangleId) {
+      const members = [];
+      for (let y = 0; y < SIZE; y += 1) {
+        for (let x = 0; x < SIZE; x += 1) {
+          const tile = board[y][x];
+          if (tile && tile.type === "entangled" && tile.entangleId === entangleId) {
+            members.push({ tile, x, y });
+          }
+        }
+      }
+      return members;
+    }
+
+    function observeEntangledPair(entangleId, reason = "観測") {
+      const members = findEntangled(entangleId);
+      if (!members.length) return 0;
+
+      if (members.length === 1) {
+        const member = members[0];
+        const value = member.tile.value;
+        const phase = randomPhase();
+        setNormal(member.tile, value, phase);
+        addLog(`${value}${entangleId} の片割れを${reason} → ${tileName(member.tile)} に確定`);
+        addEffect(member.x, member.y, "観測", "observe");
+        return 1;
+      }
+
+      const firstPhase = randomPhase();
+      const first = members[0];
+      const second = members[1];
+      const value = first.tile.value;
+      setNormal(first.tile, value, firstPhase);
+      setNormal(second.tile, value, inversePhase(firstPhase));
+      addLog(`${value}${entangleId}ペアを${reason} → ${tileName(first.tile)} と ${tileName(second.tile)} に確定`);
+      addEffect(first.x, first.y, "観測", "observe");
+      addEffect(second.x, second.y, "観測", "observe");
+
+      for (let i = 2; i < members.length; i += 1) {
+        const extra = members[i];
+        setNormal(extra.tile, extra.tile.value, randomPhase());
+      }
+      return members.length;
+    }
+
+    function observeForCollision(targetEntry, incoming, targetPos, incomingPos) {
+      if (targetEntry.tile.type === "superposition") {
+        observeSuperposition(targetEntry.tile, targetPos, "自動観測");
+      }
+      if (incoming.type === "superposition") {
+        observeSuperposition(incoming, incomingPos, "自動観測");
+      }
+      if (targetEntry.tile.type === "entangled") {
+        observeEntangledPair(targetEntry.tile.entangleId, "自動観測");
+      }
+      if (incoming.type === "entangled") {
+        observeEntangledPair(incoming.entangleId, "自動観測");
+      }
+    }
+
+    function addScore(value) {
+      score += value;
+      if (score > best) {
+        best = score;
+        localStorage.setItem(BEST_KEY, String(best));
+      }
+    }
+
+    function markMerged(tile) {
+      if (tile) mergedTileIds.add(tile.id);
+    }
+
+    function resolveMerge(left, right, pos) {
+      const leftName = tileName(left);
+      const rightName = tileName(right);
+      const baseValue = left.value;
+      const nextValue = baseValue * 2;
+
+      if (left.phase === right.phase) {
+        const r = Math.random();
+        if (r < 0.8) {
+          const result = createNormal(nextValue, left.phase);
+          addScore(nextValue);
+          markMerged(result);
+          addLog(`${leftName} と ${rightName} が建設的干渉 → ${tileName(result)} に合体`);
+          addEffect(pos.x, pos.y, `+${nextValue}`, "observe");
+          return result;
+        }
+        if (r < 0.95) {
+          const result = createSuperposition(nextValue, nextValue * 2, left.phase);
+          addScore(nextValue);
+          markMerged(result);
+          addLog(`${leftName} と ${rightName} が建設的干渉 → ${tileName(result)} の重ね合わせ`);
+          addEffect(pos.x, pos.y, "重ね合わせ", "observe");
+          return result;
+        }
+        const result = createNormal(baseValue, left.phase);
+        markMerged(result);
+        addLog(`${leftName} と ${rightName} が干渉失敗 → ${tileName(result)} だけ残存`);
+        addEffect(pos.x, pos.y, "失敗", "annihilate");
+        return result;
+      }
+
+      const r = Math.random();
+      if (r < 0.45) {
+        const result = createNormal(nextValue, randomPhase());
+        addScore(nextValue);
+        markMerged(result);
+        addLog(`${leftName} と ${rightName} が破壊的干渉 → ${tileName(result)} に不安定合体`);
+        addEffect(pos.x, pos.y, `+${nextValue}`, "observe");
+        return result;
+      }
+      if (r < 0.7) {
+        addLog(`${leftName} と ${rightName} が破壊的干渉 → 対消滅`);
+        addEffect(pos.x, pos.y, "対消滅", "annihilate");
+        return null;
+      }
+      if (r < 0.9) {
+        const result = createNormal(baseValue, Math.random() < 0.5 ? left.phase : right.phase);
+        markMerged(result);
+        addLog(`${leftName} と ${rightName} が破壊的干渉 → ${tileName(result)} だけ残存`);
+        addEffect(pos.x, pos.y, "残存", "annihilate");
+        return result;
+      }
+
+      const entangleId = nextEntangleId();
+      const primaryPhase = randomPhase();
+      const result = createEntangled(nextValue, entangleId, primaryPhase);
+      markMerged(result);
+      addScore(nextValue);
+      pendingPartners.push({ primary: result, value: nextValue, entangleId, partnerPhase: inversePhase(primaryPhase) });
+      addLog(`${leftName} と ${rightName} が破壊的干渉 → ${nextValue}${entangleId}ペアを生成`);
+      addEffect(pos.x, pos.y, "もつれ", "observe");
+      return result;
+    }
+
+    function placePendingPartners() {
+      for (const pending of pendingPartners) {
+        const cells = availableCells(board);
+        if (!cells.length) {
+          setNormal(pending.primary, pending.value, randomPhase());
+          addLog(`${pending.value}${pending.entangleId}ペアは空きマス不足 → ${tileName(pending.primary)} に不安定合体`);
+          continue;
+        }
+        const cell = cells[Math.floor(Math.random() * cells.length)];
+        const partner = createEntangled(pending.value, pending.entangleId, pending.partnerPhase);
+        board[cell.y][cell.x] = partner;
+        newTileIds.add(partner.id);
+      }
+      pendingPartners = [];
+    }
+
+    function resolveBrokenEntanglements() {
+      const ids = new Set();
+      for (const row of board) {
+        for (const tile of row) {
+          if (tile && tile.type === "entangled") ids.add(tile.entangleId);
+        }
+      }
+      ids.forEach((id) => {
+        const members = findEntangled(id);
+        if (members.length === 1) observeEntangledPair(id, "片割れ消失により観測");
+      });
+    }
+
+    function performMove(direction) {
+      if (gameOver) return;
+      if (overlay.classList.contains("show")) overlay.classList.remove("show");
+
+      const before = boardSignature();
+      const next = emptyBoard();
+      effects = [];
+      pendingPartners = [];
+
+      for (const line of getLines(direction)) {
+        const result = [];
+        for (let sourceIndex = 0; sourceIndex < line.length; sourceIndex += 1) {
+          const sourcePos = line[sourceIndex];
+          const tile = board[sourcePos.y][sourcePos.x];
+          if (!tile) continue;
+
+          const last = result[result.length - 1];
+          if (last) {
+            const targetPos = line[result.length - 1];
+            observeForCollision(last, tile, targetPos, sourcePos);
+            const sameValue = valueOf(last.tile) === valueOf(tile);
+            if (!last.merged && sameValue) {
+              const merged = resolveMerge(last.tile, tile, targetPos);
+              result.pop();
+              if (merged) result.push({ tile: merged, merged: true });
+            } else {
+              result.push({ tile, merged: false });
+            }
+          } else {
+            result.push({ tile, merged: false });
+          }
+        }
+
+        for (let i = 0; i < result.length; i += 1) {
+          const pos = line[i];
+          next[pos.y][pos.x] = result[i].tile;
+        }
+      }
+
+      board = next;
+      placePendingPartners();
+      resolveBrokenEntanglements();
+
+      const changed = boardSignature() !== before;
+      if (changed) {
+        addRandomTile();
+      }
+
+      const hadWon = victoryAnnounced;
+      render();
+      checkWin();
+      if (changed && !(victoryAnnounced && !hadWon) && !canMove()) showGameOver();
+    }
+
+    function potentialValues(tile) {
+      if (tile.type === "superposition") return [tile.low, tile.high];
+      return [tile.value];
+    }
+
+    function potentiallyMergeable(a, b) {
+      if (!a || !b) return false;
+      const av = potentialValues(a);
+      const bv = potentialValues(b);
+      return av.some((value) => bv.includes(value));
+    }
+
+    function canMove() {
+      if (availableCells().length) return true;
+      for (let y = 0; y < SIZE; y += 1) {
+        for (let x = 0; x < SIZE; x += 1) {
+          if (x + 1 < SIZE && potentiallyMergeable(board[y][x], board[y][x + 1])) return true;
+          if (y + 1 < SIZE && potentiallyMergeable(board[y][x], board[y + 1][x])) return true;
+        }
+      }
+      return false;
+    }
+
+    function observeAll() {
+      if (gameOver || observesLeft <= 0) return;
+      if (overlay.classList.contains("show")) overlay.classList.remove("show");
+
+      observesLeft -= 1;
+      effects = [];
+      let observed = 0;
+
+      for (let y = 0; y < SIZE; y += 1) {
+        for (let x = 0; x < SIZE; x += 1) {
+          const tile = board[y][x];
+          if (tile && tile.type === "superposition") {
+            observeSuperposition(tile, { x, y });
+            observed += 1;
+          }
+        }
+      }
+
+      const entangledIds = new Set();
+      for (const row of board) {
+        for (const tile of row) {
+          if (tile && tile.type === "entangled") entangledIds.add(tile.entangleId);
+        }
+      }
+      entangledIds.forEach((id) => {
+        observed += observeEntangledPair(id);
+      });
+
+      if (!observed) addLog("観測を実行 → 未確定タイルはありませんでした。");
+
+      const hadWon = victoryAnnounced;
+      render();
+      checkWin();
+      if (!(victoryAnnounced && !hadWon) && !canMove()) showGameOver();
+    }
+
+    function checkWin() {
+      if (victoryAnnounced) return;
+      for (const row of board) {
+        for (const tile of row) {
+          if (tile && tile.type === "normal" && tile.value >= 2048) {
+            victoryAnnounced = true;
+            addLog("2048を観測しました。Quantum Clear!");
+            renderLog();
+            showOverlay("win", "Quantum Clear!", "2048を観測しました。Quantum Clear!");
+            return;
+          }
+        }
+      }
+    }
+
+    function showGameOver() {
+      gameOver = true;
+      addLog("盤面が収束しました。これ以上の移動はありません。");
+      renderLog();
+      showOverlay("gameover", "Game Over", "空きマスも合体可能な干渉もありません。");
+    }
+
+    function showOverlay(mode, title, text) {
+      overlayMode = mode;
+      overlayTitle.textContent = title;
+      overlayText.textContent = text;
+      overlayAction.textContent = mode === "gameover" ? "リスタート" : "続ける";
+      overlay.classList.add("show");
+    }
+
+    function render() {
+      scoreEl.textContent = score;
+      bestEl.textContent = best;
+      observesEl.textContent = observesLeft;
+      observeButton.disabled = observesLeft <= 0 || gameOver;
+      observeButton.querySelector("span").textContent = `観測する：残り${observesLeft}回`;
+
+      tileLayer.innerHTML = "";
+      lineLayer.innerHTML = "";
+      effectLayer.innerHTML = "";
+
+      const entangledPositions = new Map();
+      for (let y = 0; y < SIZE; y += 1) {
+        for (let x = 0; x < SIZE; x += 1) {
+          const tile = board[y][x];
+          if (!tile) continue;
+          const tileEl = document.createElement("div");
+          tileEl.className = tileClass(tile);
+          tileEl.style.gridColumn = String(x + 1);
+          tileEl.style.gridRow = String(y + 1);
+          if (tile.type === "entangled") {
+            tileEl.style.setProperty("--entangle-color", entangleColor(tile.entangleId));
+            if (!entangledPositions.has(tile.entangleId)) entangledPositions.set(tile.entangleId, []);
+            entangledPositions.get(tile.entangleId).push({ x, y });
+          }
+
+          const inner = document.createElement("div");
+          inner.className = "tile-inner";
+          const value = document.createElement("div");
+          value.className = `tile-value${isCompact(tile) ? " compact" : ""}`;
+          value.textContent = tileValueText(tile);
+          const meta = document.createElement("div");
+          meta.className = "tile-meta";
+          meta.textContent = tileMetaText(tile);
+          inner.append(value, meta);
+          tileEl.appendChild(inner);
+          tileLayer.appendChild(tileEl);
+        }
+      }
+
+      entangledPositions.forEach((positions) => {
+        if (positions.length < 2) return;
+        const first = positions[0];
+        const second = positions[1];
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("class", "link-line");
+        line.setAttribute("x1", String((first.x + 0.5) * 25));
+        line.setAttribute("y1", String((first.y + 0.5) * 25));
+        line.setAttribute("x2", String((second.x + 0.5) * 25));
+        line.setAttribute("y2", String((second.y + 0.5) * 25));
+        lineLayer.appendChild(line);
+      });
+
+      for (const fx of effects) {
+        const el = document.createElement("div");
+        el.className = `effect ${fx.kind}`;
+        el.textContent = fx.text;
+        el.style.left = `${(fx.x + 0.5) * 25}%`;
+        el.style.top = `${(fx.y + 0.5) * 25}%`;
+        effectLayer.appendChild(el);
+      }
+
+      renderLog();
+      newTileIds.clear();
+      mergedTileIds.clear();
+    }
+
+    function renderLog() {
+      eventLogEl.innerHTML = "";
+      for (const message of logs) {
+        const item = document.createElement("li");
+        item.textContent = message;
+        eventLogEl.appendChild(item);
+      }
+    }
+
+    function tileClass(tile) {
+      const classes = ["tile", tile.type];
+      if (tile.phase === "+") classes.push("phase-plus");
+      if (tile.phase === "-") classes.push("phase-minus");
+      if (newTileIds.has(tile.id)) classes.push("new");
+      if (mergedTileIds.has(tile.id)) classes.push("merged");
+      return classes.join(" ");
+    }
+
+    function tileValueText(tile) {
+      if (tile.type === "superposition") return `${tile.low}/${tile.high}`;
+      return String(tile.value);
+    }
+
+    function tileMetaText(tile) {
+      if (tile.type === "entangled") return `${tile.entangleId}${tile.phase || ""}`;
+      return tile.phase;
+    }
+
+    function isCompact(tile) {
+      if (tile.type === "superposition") return `${tile.low}/${tile.high}`.length >= 6;
+      return String(tile.value).length >= 4;
+    }
+
+    function entangleColor(id) {
+      let code = 0;
+      for (const char of id) code += char.charCodeAt(0);
+      const hue = (code * 47) % 360;
+      return `hsl(${hue} 96% 72%)`;
+    }
+
+    function keyToDirection(key) {
+      const map = {
+        ArrowLeft: "left",
+        a: "left",
+        A: "left",
+        ArrowRight: "right",
+        d: "right",
+        D: "right",
+        ArrowUp: "up",
+        w: "up",
+        W: "up",
+        ArrowDown: "down",
+        s: "down",
+        S: "down"
+      };
+      return map[key];
+    }
+
+    document.addEventListener("keydown", (event) => {
+      const direction = keyToDirection(event.key);
+      if (!direction) return;
+      event.preventDefault();
+      performMove(direction);
+    });
+
+    let pointerStart = null;
+    boardEl.addEventListener("pointerdown", (event) => {
+      pointerStart = { x: event.clientX, y: event.clientY };
+      boardEl.setPointerCapture(event.pointerId);
+    });
+
+    boardEl.addEventListener("pointerup", (event) => {
+      if (!pointerStart) return;
+      const dx = event.clientX - pointerStart.x;
+      const dy = event.clientY - pointerStart.y;
+      pointerStart = null;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 30) return;
+      const direction = Math.abs(dx) > Math.abs(dy)
+        ? (dx > 0 ? "right" : "left")
+        : (dy > 0 ? "down" : "up");
+      performMove(direction);
+    });
+
+    observeButton.addEventListener("click", observeAll);
+    restartButton.addEventListener("click", startGame);
+    overlayAction.addEventListener("click", () => {
+      if (overlayMode === "gameover") {
+        startGame();
+      } else {
+        overlay.classList.remove("show");
+      }
+    });
+
+    setupCells();
+    startGame();
+  </script>
+</body>
+</html>
